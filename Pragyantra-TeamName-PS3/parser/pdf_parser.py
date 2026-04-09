@@ -147,3 +147,11 @@ if __name__ == "__main__":
     result = extract_bank_statement(pdf_file, pdf_pass)
     save_to_json(result, "output.json")
     print(f"Total transactions extracted: {len(result['transactions'])}")
+
+
+
+#  How Tejas calls it from routes/api.py:
+# pythonfrom parser.pdf_parser import extract_bank_statement
+
+# result = extract_bank_statement("statement.pdf", password="userpassword")
+# transactions = result["transactions"]
