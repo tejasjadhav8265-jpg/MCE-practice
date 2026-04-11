@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -412,6 +413,27 @@ body {
   </main>
 
   <div id="toast" class="toast hidden"></div>
+
+  <input id="pdfInput" type="file" accept="application/pdf" class="hidden" />
+
+<div class="mt-6 grid md:grid-cols-2 gap-4">
+  <div>
+    <label for="pdfPassword" class="block text-sm text-slate-300 mb-2">PDF Password (optional)</label>
+    <input
+      id="pdfPassword"
+      type="password"
+      placeholder="Enter PDF password"
+      class="w-full bg-slate-900/70 border border-slate-700 rounded-xl px-4 py-3 text-slate-100 outline-none focus:ring-2 focus:ring-violet-500/60"
+    />
+  </div>
+</div>
+
+<div class="glass-card p-6 mt-6">
+  <h3 class="text-white font-semibold text-lg">Advisor Insight</h3>
+  <p id="adviceBox" class="text-slate-300 text-sm mt-3 whitespace-pre-line"></p>
+</div>
+
+<script src="./script.js"></script>
 
   <script src="./script.js">
     
