@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Alternative Credit Score</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<style>
+    
+:root {
+  --bg-main: #050816;
+  --bg-card: rgba(17, 24, 39, 0.72);
+  --border-card: rgba(148, 163, 184, 0.2);
+  --text-main: #e2e8f0;
+  --accent-a: #7c3aed;
+  --accent-b: #06b6d4;
+  --success: #22c55e;
+  --warning: #f59e0b;
+  --danger: #ef4444;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: "Inter", system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  color: var(--text-main);
+  background:
+    radial-gradient(circle at 20% 0%, rgba(124, 58, 237, 0.12), transparent 40%),
+    radial-gradient(circle at 80% 20%, rgba(6, 182, 212, 0.1), transparent 35%),
+    var(--bg-main);
+  overflow-x: hidden;
+}
+
+.bg-orb {
+  position: fixed;
+  border-radius: 999px;
+  filter: blur(80px);
+  opacity: 0.26;
+  z-index: -1;
+  pointer-events: none;
+}
+
+.orb-one {
+  width: 320px;
+  height: 320px;
+  top: -70px;
+  left: -70px;
+  background: #8b5cf6;
+}
+
+.orb-two {
+  width: 320px;
+  height: 320px;
+  right: -80px;
+  top: 20%;
+  background: #06b6d4;
+}
+
+.glass-card {
+  background: linear-gradient(140deg, rgba(15, 23, 42, 0.84), rgba(17, 24, 39, 0.74));
+  border: 1px solid var(--border-card);
+  border-radius: 1rem;
+  backdrop-filter: blur(12px);
+  box-shadow: 0 10px 35px rgba(2, 6, 23, 0.45);
+}
+
+.brand-gradient {
+  background: linear-gradient(135deg, var(--accent-a), var(--accent-b));
+}
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.status-offline {
+  border: 1px solid rgba(239, 68, 68, 0.45);
+  background: rgba(127, 29, 29, 0.22);
+  color: #fecaca;
+}
+
+.status-online {
+  border: 1px solid rgba(34, 197, 94, 0.4);
+  background: rgba(20, 83, 45, 0.24);
+  color: #bbf7d0;
+}
+
+.dot {
+  height: 8px;
+  width: 8px;
+  border-radius: 999px;
+}
+
+.dot-offline {
+  background: var(--danger);
+}
+
+.dot-online {
+  background: var(--success);
+  box-shadow: 0 0 10px rgba(34, 197, 94, 0.8);
+}
+
+.action-btn {
+  border: 1px solid #475569;
+  border-radius: 0.9rem;
+  min-height: 68px;
+  padding: 12px 16px;
+  text-align: left;
+  font-weight: 600;
+  color: #e2e8f0;
+  background: rgba(15, 23, 42, 0.75);
+  transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+}
+
+.action-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 25px rgba(76, 29, 149, 0.2);
+}
+
+.btn-primary {
+  border-color: transparent;
+  background: linear-gradient(135deg, var(--accent-a), #4f46e5);
+}
+
+.btn-primary:hover {
+  box-shadow: 0 15px 35px rgba(99, 102, 241, 0.35);
+}
+
+.spinner {
+  width: 48px;
+  height: 48px;
+  border-radius: 999px;
+  border: 4px solid rgba(148, 163, 184, 0.25);
+  border-top-color: #a78bfa;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.score-ring-wrap {
+  display: flex;
+  justify-content: center;
+}
+
+.score-ring {
+  width: 220px;
+  height: 220px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: conic-gradient(#f59e0b 0deg, rgba(30, 41, 59, 0.75) 0deg);
+  box-shadow: 0 10px 28px rgba(2, 6, 23, 0.45);
+  transition: background 500ms ease;
+}
+
+.score-inner {
+  width: 170px;
+  height: 170px;
+  border-radius: 50%;
+  background: rgba(2, 6, 23, 0.94);
+  border: 1px solid rgba(100, 116, 139, 0.35);
+  display: grid;
+  place-items: center;
+  text-align: center;
+}
+
+.score-value {
+  margin: 0;
+  font-size: 3rem;
+  line-height: 1;
+  font-weight: 800;
+  color: #f8fafc;
+}
+
+.risk-badge {
+  border-radius: 999px;
+  padding: 8px 14px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.risk-low {
+  color: #dcfce7;
+  border: 1px solid rgba(34, 197, 94, 0.45);
+  background: rgba(20, 83, 45, 0.24);
+}
+
+.risk-medium {
+  color: #fef3c7;
+  border: 1px solid rgba(245, 158, 11, 0.45);
+  background: rgba(120, 53, 15, 0.24);
+}
+
+.risk-high {
+  color: #fee2e2;
+  border: 1px solid rgba(239, 68, 68, 0.45);
+  background: rgba(127, 29, 29, 0.24);
+}
+
+.feature-card {
+  border-radius: 0.8rem;
+  border: 1px solid rgba(100, 116, 139, 0.25);
+  background: rgba(15, 23, 42, 0.7);
+  padding: 0.95rem;
+}
+
+.feature-key {
+  margin: 0;
+  font-size: 0.72rem;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.feature-value {
+  margin: 0.45rem 0 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #f8fafc;
+}
+
+.insight-item {
+  display: flex;
+  gap: 10px;
+}
+
+.insight-bullet {
+  margin-top: 0.32rem;
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+
+.insight-good .insight-bullet {
+  background: var(--success);
+}
+
+.insight-warn .insight-bullet {
+  background: var(--warning);
+}
+
+.insight-risk .insight-bullet {
+  background: var(--danger);
+}
+
+.toast {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  background: rgba(2, 6, 23, 0.95);
+  color: #f8fafc;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  border-radius: 0.8rem;
+  padding: 10px 14px;
+  font-size: 0.9rem;
+  z-index: 50;
+}
+
+.hidden {
+  display: none !important;
+}
+
+@media (max-width: 768px) {
+  .score-ring {
+    width: 190px;
+    height: 190px;
+  }
+
+  .score-inner {
+    width: 145px;
+    height: 145px;
+  }
+
+  .score-value {
+    font-size: 2.35rem;
+  }
+}
+</style>
+<body class="min-h-screen">
+  <div class="bg-orb orb-one"></div>
+  <div class="bg-orb orb-two"></div>
+
+  <header class="max-w-7xl mx-auto px-6 pt-6">
+    <div class="glass-card flex items-center justify-between px-4 py-3">
+      <div class="flex items-center gap-3">
+        <div class="h-10 w-10 rounded-xl brand-gradient flex items-center justify-center shadow-lg">
+          <span class="font-extrabold text-white">AI</span>
+        </div>
+        <div>
+          <p class="text-sm text-slate-400">Fintech Intelligence</p>
+          <h1 class="text-lg md:text-xl font-bold text-white">AI Alternative Credit Score</h1>
+        </div>
+      </div>
+      <div id="backendBadge" class="status-badge status-offline">
+        <span id="backendDot" class="dot dot-offline"></span>
+        <span id="backendText">Backend Checking...</span>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-6 pb-10">
+    <section id="landingSection" class="mt-8 md:mt-12">
+      <div class="glass-card p-8 md:p-12">
+        <div class="max-w-3xl">
+          <p class="text-emerald-300 font-semibold tracking-wider text-xs uppercase">AI-Powered Underwriting</p>
+          <h2 class="text-3xl md:text-5xl font-extrabold text-white leading-tight mt-3">
+            AI Alternative Credit Score
+          </h2>
+          <p class="text-slate-300 mt-5 text-base md:text-lg">
+            Assess creditworthiness from real transaction behavior with transparent factors and risk insights.
+          </p>
+        </div>
+
+        <div class="mt-8 grid md:grid-cols-2 gap-4">
+          <button id="uploadBtn" class="action-btn border-slate-600 hover:border-violet-400">
+            Upload Bank Statement PDF
+            <span class="text-xs text-slate-400 block mt-1">Visual demo button</span>
+          </button>
+          <button id="sampleBtn" class="action-btn btn-primary">
+            Or Try with Sample Data
+            <span class="text-xs text-violet-200 block mt-1">Calls /api/test-score instantly</span>
+          </button>
+        </div>
+
+        <div class="mt-6">
+          <label for="occupationInput" class="block text-sm text-slate-300 mb-2">Occupation (optional)</label>
+          <input
+            id="occupationInput"
+            type="text"
+            placeholder="e.g. Freelancer, Teacher, Developer"
+            class="w-full md:w-1/2 bg-slate-900/70 border border-slate-700 rounded-xl px-4 py-3 text-slate-100 outline-none focus:ring-2 focus:ring-violet-500/60"
+          />
+        </div>
+      </div>
+    </section>
+
+    <section id="loadingSection" class="hidden mt-10">
+      <div class="glass-card p-10 flex flex-col items-center">
+        <div class="spinner"></div>
+        <p class="text-slate-200 mt-4 font-medium">Analyzing transaction behavior...</p>
+        <p class="text-slate-400 text-sm mt-1">Running feature extraction and scoring model</p>
+      </div>
+    </section>
+
+    <section id="dashboardSection" class="hidden mt-8 md:mt-10 space-y-6">
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div class="glass-card p-6 lg:col-span-1">
+          <p class="text-slate-300 text-sm">Credit Score</p>
+          <div class="mt-4 score-ring-wrap">
+            <div id="scoreRing" class="score-ring">
+              <div class="score-inner">
+                <p id="creditScoreValue" class="score-value">---</p>
+                <p class="text-xs text-slate-400">Range: 300 - 850</p>
+              </div>
+            </div>
+          </div>
+          <div class="mt-4 flex items-center justify-center">
+            <span id="riskBadge" class="risk-badge risk-medium">Risk: --</span>
+          </div>
+          <p id="scoreMessage" class="text-slate-300 text-sm mt-4 text-center"></p>
+        </div>
+
+        <div class="glass-card p-6 lg:col-span-2">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-white font-semibold text-lg">Factor Breakdown</h3>
+            <span class="text-xs text-slate-400">Contribution to model score (%)</span>
+          </div>
+          <div class="h-[320px]">
+            <canvas id="factorChart"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
+        <div class="glass-card p-6 xl:col-span-2">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-white font-semibold text-lg">Behavioral Features</h3>
+            <span class="text-xs text-slate-400">Extracted from bank statement data</span>
+          </div>
+          <div id="featuresGrid" class="grid sm:grid-cols-2 xl:grid-cols-4 gap-4"></div>
+        </div>
+
+        <div class="glass-card p-6">
+          <h3 class="text-white font-semibold text-lg">Strengths & Improvements</h3>
+          <ul id="insightsList" class="mt-4 space-y-3 text-sm text-slate-200"></ul>
+          <button id="downloadBtn" class="w-full mt-6 action-btn btn-primary py-3">
+            Download Report
+          </button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div id="toast" class="toast hidden"></div>
+
+  <script src="./script.js">
+    
+const BACKEND_ORIGIN = "http://127.0.0.1:8000/api";
+const SCORE_ENDPOINT = `${BACKEND_ORIGIN}/test-score`;   // ✅ FIXED
+const HEALTH_ENDPOINT = `${BACKEND_ORIGIN}/health`;      // ✅ NEW
+
+const sampleTransactions = [
+  { date: "2024-01-01", amount: 50000, category: "salary", balance: 50000 },
+  { date: "2024-01-05", amount: -12000, category: "rent", balance: 38000 },
+  { date: "2024-01-10", amount: -3000, category: "groceries", balance: 35000 },
+  { date: "2024-01-15", amount: -1500, category: "food", balance: 33500 },
+  { date: "2024-01-20", amount: -2000, category: "transport", balance: 31500 },
+  { date: "2024-01-25", amount: -1000, category: "entertainment", balance: 30500 },
+  { date: "2024-02-01", amount: 50000, category: "salary", balance: 80500 },
+  { date: "2024-02-05", amount: -12000, category: "rent", balance: 68500 },
+  { date: "2024-02-10", amount: -3500, category: "groceries", balance: 65000 },
+  { date: "2024-02-15", amount: -2000, category: "food", balance: 63000 },
+  { date: "2024-02-20", amount: -2000, category: "transport", balance: 61000 },
+  { date: "2024-02-25", amount: -5000, category: "entertainment", balance: 56000 }
+];
+
+const dom = {
+  landing: document.getElementById("landingSection"),
+  loading: document.getElementById("loadingSection"),
+  dashboard: document.getElementById("dashboardSection"),
+  sampleBtn: document.getElementById("sampleBtn"),
+  uploadBtn: document.getElementById("uploadBtn"),
+  downloadBtn: document.getElementById("downloadBtn"),
+  occupationInput: document.getElementById("occupationInput"),
+  backendBadge: document.getElementById("backendBadge"),
+  backendDot: document.getElementById("backendDot"),
+  backendText: document.getElementById("backendText"),
+  creditScoreValue: document.getElementById("creditScoreValue"),
+  scoreRing: document.getElementById("scoreRing"),
+  riskBadge: document.getElementById("riskBadge"),
+  scoreMessage: document.getElementById("scoreMessage"),
+  featuresGrid: document.getElementById("featuresGrid"),
+  insightsList: document.getElementById("insightsList"),
+  toast: document.getElementById("toast")
+};
+
+let factorChart = null;
+
+function showToast(message) {
+  dom.toast.textContent = message;
+  dom.toast.classList.remove("hidden");
+  setTimeout(() => dom.toast.classList.add("hidden"), 2400);
+}
+
+function setBackendStatus(connected) {
+  dom.backendBadge.classList.toggle("status-online", connected);
+  dom.backendBadge.classList.toggle("status-offline", !connected);
+  dom.backendDot.classList.toggle("dot-online", connected);
+  dom.backendDot.classList.toggle("dot-offline", !connected);
+  dom.backendText.textContent = connected ? "Backend Connected" : "Backend Unreachable";
+}
+
+// ✅ FIXED backend check
+async function checkBackendConnection() {
+  try {
+    const res = await fetch(HEALTH_ENDPOINT);
+    setBackendStatus(res.ok);
+  } catch {
+    setBackendStatus(false);
+  }
+}
+
+function setLoadingState(isLoading) {
+  dom.loading.classList.toggle("hidden", !isLoading);
+  dom.sampleBtn.disabled = isLoading;
+}
+
+function riskColorByLevel(level) {
+  if (level === "Low") return "#22c55e";
+  if (level === "High") return "#ef4444";
+  return "#f59e0b";
+}
+
+function getRingProgress(score) {
+  const min = 300;
+  const max = 850;
+  return Math.round(((score - min) / (max - min)) * 360);
+}
+
+function renderFeatures(features) {
+  dom.featuresGrid.innerHTML = "";
+  Object.entries(features).forEach(([key, value]) => {
+    const card = document.createElement("div");
+    card.className = "feature-card";
+    card.innerHTML = `
+      <p class="feature-key">${key.replaceAll("_", " ")}</p>
+      <p class="feature-value">${typeof value === "number" ? value.toFixed(2) : value}</p>
+    `;
+    dom.featuresGrid.appendChild(card);
+  });
+}
+
+// ✅ FIXED feature name bug
+function renderInsights(data) {
+  const features = data.features;
+  const score = data.score.credit_score;
+
+  const items = [];
+
+  if (score > 700) items.push("Strong financial profile");
+  else if (score > 550) items.push("Moderate financial stability");
+  else items.push("High financial risk");
+
+  if ((features.savings_ratio ?? 0) > 0)
+    items.push("Positive savings behavior");
+  else
+    items.push("Low or negative savings");
+
+  dom.insightsList.innerHTML = items
+    .map(i => `<li>${i}</li>`)
+    .join("");
+}
+
+function renderDashboard(data) {
+  const { features, score } = data;
+
+  dom.creditScoreValue.textContent = score.credit_score;
+  dom.scoreMessage.textContent = score.message;
+
+  const deg = getRingProgress(score.credit_score);
+  const color = riskColorByLevel(score.risk_level);
+
+  dom.scoreRing.style.background = `conic-gradient(${color} ${deg}deg, #1e293b ${deg}deg)`;
+
+  renderFeatures(features);
+  renderInsights(data);
+
+  renderFactorChart(score.factor_breakdown);
+
+  dom.dashboard.classList.remove("hidden");
+}
+
+// ✅ SAFETY FIX
+function renderFactorChart(data) {
+  const canvas = document.getElementById("factorChart");
+  if (!canvas) return;
+
+  if (factorChart) factorChart.destroy();
+
+  factorChart = new Chart(canvas, {
+    type: "bar",
+    data: {
+      labels: Object.keys(data),
+      datasets: [{ data: Object.values(data) }]
+    }
+  });
+}
+
+async function fetchScore(payload) {
+  const res = await fetch(SCORE_ENDPOINT, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+
+  if (!res.ok) throw new Error("API failed");
+
+  return res.json();
+}
+
+async function onTrySampleData() {
+  setLoadingState(true);
+  try {
+    const data = await fetchScore({
+      transactions: sampleTransactions,
+      occupation: dom.occupationInput.value || "Other"
+    });
+
+    renderDashboard(data);
+    showToast("Success");
+    setBackendStatus(true);
+  } catch (e) {
+    showToast("Backend error");
+    setBackendStatus(false);
+    console.error(e);
+  } finally {
+    setLoadingState(false);
+  }
+}
+
+function init() {
+  checkBackendConnection();
+  setInterval(checkBackendConnection, 5000);
+  dom.sampleBtn.addEventListener("click", onTrySampleData);
+}
+
+init();
+  </script>
+</body>
+</html>
