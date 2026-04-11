@@ -1,24 +1,19 @@
 def categorize_transaction(narration: str) -> str:
     text = narration.lower()
 
-    if any(k in text for k in ["rent", "emi"]):
+    if "rent" in text or "emi" in text:
         return "rent"
-    if any(k in text for k in ["grocery", "supermarket"]):
+    if "grocery" in text:
         return "groceries"
-    if any(k in text for k in ["fuel", "petrol", "uber"]):
+    if "fuel" in text or "petrol" in text:
         return "transport"
-    if any(k in text for k in ["salary", "credit", "income"]):
+    if "salary" in text:
         return "income"
-    if any(k in text for k in ["food", "zomato", "swiggy"]):
-        return "food"
 
     return "others"
 
 
 def transform_transactions_for_ml(transactions):
-    """
-    Convert parsed transactions → ML-ready format
-    """
     transformed = []
 
     for t in transactions:
