@@ -11,8 +11,8 @@ from pathlib import Path
 def open_pdf(pdf_path: str, password: str = None):
     """
     Opens any PDF file.
-    If the PDF is password protected, the password entered by the user is used.
-    Raises a clear error if the password is wrong or the file is corrupt.
+    If the PDF is password-protected, the supplied password is used.
+    Raises a clear ValueError if the password is wrong or the file is corrupt.
     """
     try:
         if password and password.strip() != "":
@@ -31,7 +31,7 @@ def open_pdf(pdf_path: str, password: str = None):
 # ═══════════════════════════════════════════════════════════════════════════
 
 def extract_raw_cell(cell) -> str:
-    """Convert any cell to string safely."""
+    """Convert any cell value to a stripped string safely."""
     if cell is None:
         return ""
     return str(cell).strip()
@@ -39,15 +39,17 @@ def extract_raw_cell(cell) -> str:
 
 def extract_raw_rows_from_page(page) -> list[list[str]]:
     """
-    Tries multiple extraction strategies to handle any bank statement format.
-    Strategy 1: Line-based  (works for ruled/bordered tables like HDFC, SBI)
-    Strategy 2: Text-based  (works for borderless/passbook style PDFs)
-    Strategy 3: Raw words   (last resort fallback for any PDF)
-    Returns a flat list of raw rows (each row is a list of string cells).
+    Tries three strategies to handle any bank statement PDF format.
+
+    Strategy 1 — Line-based  : ruled/bordered tables (HDFC, SBI, Axis)
+    Strategy 2 — Text-based  : borderless / passbook-style PDFs
+    Strategy 3 — Raw text    : last-resort fallback for any PDF
+
+    Returns a flat list of rows; each row is a list of string cells.
     """
     all_rows = []
 
-    # Strategy 1: Line-based table extraction
+    # ── Strategy 1: Line-based table extraction ──────────────────────────
     try:
         tables = page.extract_tables({
             "vertical_strategy":   "lines",
@@ -65,7 +67,7 @@ def extract_raw_rows_from_page(page) -> list[list[str]]:
     except Exception:
         pass
 
-    # Strategy 2: Text-based table extraction
+    # ── Strategy 2: Text-based table extraction ───────────────────────────
     try:
         tables = page.extract_tables({
             "vertical_strategy":   "text",
@@ -82,7 +84,7 @@ def extract_raw_rows_from_page(page) -> list[list[str]]:
     except Exception:
         pass
 
-    # Strategy 3: Fallback — extract raw text lines as single-column rows
+    # ── Strategy 3: Fallback — raw text lines as single-column rows ───────
     try:
         raw_text = page.extract_text() or ""
         for line in raw_text.splitlines():
@@ -97,9 +99,18 @@ def extract_raw_rows_from_page(page) -> list[list[str]]:
 
 def extract_all_raw_data(pdf_path: str, password: str = None) -> dict:
     """
-    STEP 2 OUTPUT:
     Opens the PDF and extracts every row from every table on every page.
-    Returns raw JSON with all pages and their rows — no cleaning done yet.
+    Returns raw JSON — no cleaning is done at this stage.
+
+    Output shape:
+    {
+        "source": "<filename>",
+        "total_pages": N,
+        "pages": [
+            { "page_number": 1, "raw_rows": [[...], ...] },
+            ...
+        ]
+    }
     """
     pdf = open_pdf(pdf_path, password)
     raw_pages = []
@@ -109,7 +120,7 @@ def extract_all_raw_data(pdf_path: str, password: str = None) -> dict:
             rows = extract_raw_rows_from_page(page)
             raw_pages.append({
                 "page_number": page_num + 1,
-                "raw_rows":    rows
+                "raw_rows":    rows,
             })
     finally:
         pdf.close()
@@ -117,7 +128,7 @@ def extract_all_raw_data(pdf_path: str, password: str = None) -> dict:
     return {
         "source":      Path(pdf_path).name,
         "total_pages": len(raw_pages),
-        "pages":       raw_pages
+        "pages":       raw_pages,
     }
 
 
@@ -125,20 +136,20 @@ def extract_all_raw_data(pdf_path: str, password: str = None) -> dict:
 # STEP 3 — CLEAN THE RAW DATA
 # ═══════════════════════════════════════════════════════════════════════════
 
-# ── 3a. Detect if a row is a real transaction row ──────────────────────────
+# ── 3a. Date detection ────────────────────────────────────────────────────
 
 DATE_PATTERNS = [
-    r"^\d{2}/\d{2}/\d{4}$",   # 01/01/2026
-    r"^\d{2}/\d{2}/\d{2}$",   # 01/01/26
-    r"^\d{2}-\d{2}-\d{4}$",   # 01-01-2026
-    r"^\d{2}-\d{2}-\d{2}$",   # 01-01-26
-    r"^\d{4}-\d{2}-\d{2}$",   # 2026-01-01
-    r"^\d{2}\s+\w{3}\s+\d{4}$",  # 01 Jan 2026
-    r"^\d{2}\s+\w{3}\s+\d{2}$",  # 01 Jan 26
+    r"^\d{2}/\d{2}/\d{4}$",        # 01/01/2026
+    r"^\d{2}/\d{2}/\d{2}$",        # 01/01/26
+    r"^\d{2}-\d{2}-\d{4}$",        # 01-01-2026
+    r"^\d{2}-\d{2}-\d{2}$",        # 01-01-26
+    r"^\d{4}-\d{2}-\d{2}$",        # 2026-01-01  (ISO)
+    r"^\d{2}\s+\w{3}\s+\d{4}$",    # 01 Jan 2026
+    r"^\d{2}\s+\w{3}\s+\d{2}$",    # 01 Jan 26
 ]
 
 def is_valid_date(value: str) -> bool:
-    """Returns True if value looks like any known date format."""
+    """Returns True if *value* matches any known bank date format."""
     value = value.strip()
     for pattern in DATE_PATTERNS:
         if re.match(pattern, value):
@@ -148,10 +159,10 @@ def is_valid_date(value: str) -> bool:
 
 def is_transaction_row(row: list[str]) -> bool:
     """
-    A transaction row must have a valid date in the first non-empty column.
-    Handles both left-to-right and passbook styles.
+    A transaction row must have a valid date in one of the first three columns.
+    Covers both left-to-right and passbook column arrangements.
     """
-    for cell in row[:3]:  # check first 3 columns
+    for cell in row[:3]:
         if cell and is_valid_date(cell):
             return True
     return False
@@ -159,15 +170,17 @@ def is_transaction_row(row: list[str]) -> bool:
 
 def is_header_or_garbage_row(row: list[str]) -> bool:
     """
-    Detects and filters out:
-    - Column header rows (Date, Narration, Particulars, etc.)
-    - Completely empty rows
-    - Footer/disclaimer rows
-    - Page number rows
+    Returns True for:
+      - Completely empty rows
+      - Column-header rows  (Date, Narration, Debit, …)
+      - Footer / disclaimer / page-number rows
     """
     joined = " ".join(row).strip().lower()
 
     if not joined:
+        return True
+
+    if all(c.strip() == "" for c in row):
         return True
 
     header_keywords = [
@@ -177,16 +190,12 @@ def is_header_or_garbage_row(row: list[str]) -> bool:
         "sl no", "sr no", "s.no", "opening", "closing",
         "statement of account", "page no", "page :", "continued",
         "branch", "account no", "ifsc", "micr", "nomination",
-        "closing balance brought forward", "carried forward"
+        "closing balance brought forward", "carried forward",
     ]
 
     for kw in header_keywords:
         if kw in joined and not is_transaction_row(row):
             return True
-
-    # Row with all empty cells
-    if all(c.strip() == "" for c in row):
-        return True
 
     return False
 
@@ -195,20 +204,24 @@ def is_header_or_garbage_row(row: list[str]) -> bool:
 
 def is_continuation_row(row: list[str]) -> bool:
     """
-    A continuation row has no date in col 0 but has text in col 1.
-    This happens when narration wraps to the next line in pdfplumber.
+    A continuation row has an empty first column but non-empty second column.
+    This happens when a long narration wraps to the next line in pdfplumber.
+
+    FIX: removed the redundant `not is_valid_date(col0)` check — col0 is
+    already guaranteed to be "" at this point, so that check was always True
+    and added noise.
     """
     if not row:
         return False
     col0 = row[0].strip() if len(row) > 0 else ""
     col1 = row[1].strip() if len(row) > 1 else ""
-    return col0 == "" and col1 != "" and not is_valid_date(col0)
+    return col0 == "" and col1 != ""          # ← fixed
 
 
 def merge_continuation_rows(rows: list[list[str]]) -> list[list[str]]:
     """
     Merges wrapped narration lines into their parent transaction row.
-    Works for HDFC, SBI, ICICI, Axis, passbook styles.
+    Works for HDFC, SBI, ICICI, Axis, and passbook-style PDFs.
     """
     merged = []
     for row in rows:
@@ -217,26 +230,26 @@ def merge_continuation_rows(rows: list[list[str]]) -> list[list[str]]:
         if is_transaction_row(row):
             merged.append(row[:])
         elif is_continuation_row(row) and merged:
-            # Append extra narration text to previous row's narration column
             extra = row[1].strip() if len(row) > 1 else ""
             if extra and len(merged[-1]) > 1:
                 merged[-1][1] = merged[-1][1] + " " + extra
     return merged
 
 
-# ── 3c. Amount parsing ─────────────────────────────────────────────────────
+# ── 3c. Amount parsing ────────────────────────────────────────────────────
 
 def parse_amount(value: str) -> float:
     """
-    Parses Indian-format amounts.
-    '1,23,456.78' -> 123456.78
-    '5,000.00'    -> 5000.0
-    'Dr 500.00'   -> 500.0
-    ''            -> 0.0
+    Parses Indian-format currency strings to float.
+
+    Examples:
+        '1,23,456.78'  →  123456.78
+        '5,000.00'     →  5000.0
+        'Dr 500.00'    →  500.0
+        ''             →  0.0
     """
     if not value or value.strip() == "":
         return 0.0
-    # Remove currency symbols, Dr, Cr labels, commas
     cleaned = re.sub(r"[₹$,]", "", value)
     cleaned = re.sub(r"(?i)(dr|cr)\s*", "", cleaned).strip()
     try:
@@ -247,8 +260,8 @@ def parse_amount(value: str) -> float:
 
 def detect_dr_cr_from_value(value: str) -> str:
     """
-    Some banks write 'Dr' or 'Cr' inside the amount cell.
-    Returns 'DEBIT', 'CREDIT', or '' if not found.
+    Some banks embed 'Dr' / 'Cr' inside the amount cell.
+    Returns 'DEBIT', 'CREDIT', or '' if neither label is found.
     """
     if re.search(r"(?i)\bdr\b", value):
         return "DEBIT"
@@ -257,33 +270,32 @@ def detect_dr_cr_from_value(value: str) -> str:
     return ""
 
 
-# ── 3d. Narration cleaning ─────────────────────────────────────────────────
+# ── 3d. Narration cleaning ────────────────────────────────────────────────
 
 def clean_narration(text: str) -> str:
     """
-    Cleans raw narration text:
-    - Collapses extra spaces and newlines
-    - Removes stray special characters
-    - Fixes broken words split across lines (e.g. 'SUPE RYES' stays as-is
-      since that is how the bank recorded it)
+    - Collapses all whitespace / newlines to a single space
+    - Strips non-printable / non-ASCII characters
     """
-    text = re.sub(r"\s+", " ", text)          # collapse all whitespace
-    text = re.sub(r"[^\x20-\x7E]", "", text)  # remove non-printable chars
+    text = re.sub(r"\s+", " ", text)
+    text = re.sub(r"[^\x20-\x7E]", "", text)
     return text.strip()
 
 
-# ── 3e. Determine transaction type ────────────────────────────────────────
+# ── 3e. Transaction type ──────────────────────────────────────────────────
 
 def determine_transaction_type(
     withdrawal: float,
     deposit: float,
-    dr_cr_hint: str = ""
+    dr_cr_hint: str = "",
 ) -> str:
     """
-    Determines DEBIT or CREDIT from:
-    1. Withdrawal/Deposit amounts
-    2. Dr/Cr hint from amount cell
-    3. Falls back to UNKNOWN
+    Priority:
+      1. Explicit Dr/Cr label found in the amount cell
+      2. Withdrawal > 0  → DEBIT
+      3. Deposit    > 0  → CREDIT
+      4. Both non-zero   → DEBIT  (edge case)
+      5. Both zero       → UNKNOWN
     """
     if dr_cr_hint:
         return dr_cr_hint
@@ -292,34 +304,36 @@ def determine_transaction_type(
     if deposit > 0 and withdrawal == 0:
         return "CREDIT"
     if withdrawal > 0 and deposit > 0:
-        return "DEBIT"   # edge case: treat as debit
+        return "DEBIT"
     return "UNKNOWN"
 
 
-# ── 3f. Map raw row to transaction dict ───────────────────────────────────
+# ── 3f. Map raw row → transaction dict ───────────────────────────────────
 
 def map_row_to_transaction(row: list[str], page_number: int) -> dict | None:
     """
-    Maps a cleaned merged row to the final transaction dictionary.
-    Handles variable column counts across different bank formats:
+    Maps a cleaned / merged row to the final transaction dictionary.
 
-    HDFC / ICICI / Axis (7 cols):
-      Date | Narration | Chq/Ref | Value Dt | Withdrawal | Deposit | Balance
+    Supported column layouts
+    ─────────────────────────────────────────────────────────────────────────
+    7-col (HDFC / ICICI / Axis / Kotak):
+        Date | Narration | Chq/Ref | Value Dt | Withdrawal | Deposit | Balance
 
-    SBI Passbook (5 cols):
-      Date | Particulars | Debit | Credit | Balance
+    5-col (SBI passbook / PNB):
+        Date | Particulars | Debit | Credit | Balance
 
-    Generic (6 cols):
-      Date | Description | Ref | Debit | Credit | Balance
+    4-col (some passbooks):
+        Date | Description | Amount | Balance
 
     Returns None if the row cannot be mapped to a valid transaction.
     """
-    # Pad row to at least 7 columns
+    # Pad to at least 7 columns so index access is always safe
     while len(row) < 7:
         row.append("")
 
     col_count = len([c for c in row if c.strip() != ""])
 
+    # Initialise all fields with safe defaults
     date            = ""
     narration       = ""
     chq_ref_no      = ""
@@ -330,7 +344,7 @@ def map_row_to_transaction(row: list[str], page_number: int) -> dict | None:
     dr_cr_hint      = ""
 
     if col_count >= 6:
-        # Standard 7-column format (HDFC, ICICI, Axis, Kotak)
+        # ── 7-column standard format ─────────────────────────────────────
         date            = row[0]
         narration       = row[1]
         chq_ref_no      = row[2]
@@ -341,7 +355,7 @@ def map_row_to_transaction(row: list[str], page_number: int) -> dict | None:
         closing_balance = parse_amount(row[6])
 
     elif col_count == 5:
-        # 5-column format (SBI passbook, PNB)
+        # ── 5-column passbook format ──────────────────────────────────────
         date            = row[0]
         narration       = row[1]
         dr_cr_hint      = detect_dr_cr_from_value(row[2]) or detect_dr_cr_from_value(row[3])
@@ -350,23 +364,24 @@ def map_row_to_transaction(row: list[str], page_number: int) -> dict | None:
         closing_balance = parse_amount(row[4])
 
     elif col_count == 4:
-        # 4-column format (some passbooks: Date | Desc | Amount | Balance)
+        # ── 4-column single-amount format ─────────────────────────────────
         date            = row[0]
         narration       = row[1]
         dr_cr_hint      = detect_dr_cr_from_value(row[2])
         amount          = parse_amount(row[2])
         closing_balance = parse_amount(row[3])
+        # Assign amount to the correct side based on hint
         if dr_cr_hint == "DEBIT":
             withdrawal_amt = amount
         elif dr_cr_hint == "CREDIT":
             deposit_amt = amount
         else:
-            withdrawal_amt = amount  # assume debit if unknown
+            withdrawal_amt = amount   # assume debit when ambiguous
 
     else:
-        return None  # cannot map this row
+        return None   # cannot map — not enough columns
 
-    # Final validation — must have a valid date
+    # A valid transaction MUST have a parseable date
     if not is_valid_date(date):
         return None
 
@@ -385,14 +400,14 @@ def map_row_to_transaction(row: list[str], page_number: int) -> dict | None:
     }
 
 
-# ── 3g. Remove duplicates ─────────────────────────────────────────────────
+# ── 3g. Remove exact duplicates ───────────────────────────────────────────
 
 def remove_duplicates(transactions: list[dict]) -> list[dict]:
     """
-    Removes exact duplicate transactions.
-    A duplicate is defined as same date + narration + withdrawal + deposit.
+    Deduplicates on (date, narration, withdrawal_amt, deposit_amt).
+    Preserves the first occurrence of each unique combination.
     """
-    seen = set()
+    seen   = set()
     unique = []
     for t in transactions:
         key = (
@@ -407,18 +422,20 @@ def remove_duplicates(transactions: list[dict]) -> list[dict]:
     return unique
 
 
-# ── 3h. Remove UNKNOWN rows ────────────────────────────────────────────────
+# ── 3h. Remove UNKNOWN zero-amount rows ───────────────────────────────────
 
 def remove_unknown_transactions(transactions: list[dict]) -> list[dict]:
     """
-    Removes rows where both withdrawal and deposit are 0
-    and transaction type is UNKNOWN — these are garbage rows.
+    Drops rows where both amounts are 0 AND the type is UNKNOWN.
+    These are almost always header remnants or garbage rows.
     """
     return [
         t for t in transactions
-        if not (t["transaction_type"] == "UNKNOWN"
-                and t["withdrawal_amt"] == 0.0
-                and t["deposit_amt"] == 0.0)
+        if not (
+            t["transaction_type"] == "UNKNOWN"
+            and t["withdrawal_amt"] == 0.0
+            and t["deposit_amt"]   == 0.0
+        )
     ]
 
 
@@ -428,11 +445,15 @@ def remove_unknown_transactions(transactions: list[dict]) -> list[dict]:
 
 def clean_raw_data(raw_data: dict) -> dict:
     """
-    STEP 3+4:
-    Takes the raw JSON from Step 2 and produces the final cleaned
-    transaction JSON. Pipeline per page:
-      raw rows → filter headers/garbage → merge multi-line narrations
-      → map to transaction dict → remove duplicates → remove unknowns
+    Per-page pipeline:
+        raw rows
+        → filter headers/garbage
+        → merge multi-line narrations
+        → map to transaction dict
+        → remove duplicates
+        → remove UNKNOWN zero-amount rows
+
+    Returns { "transactions": [...] }
     """
     all_transactions = []
 
@@ -440,19 +461,14 @@ def clean_raw_data(raw_data: dict) -> dict:
         page_num = page["page_number"]
         rows     = page["raw_rows"]
 
-        # Filter garbage/header rows and merge continuation rows
         merged = merge_continuation_rows(rows)
 
-        # Map each row to a transaction dict
         for row in merged:
             txn = map_row_to_transaction(row, page_num)
             if txn:
                 all_transactions.append(txn)
 
-    # Remove duplicates
     all_transactions = remove_duplicates(all_transactions)
-
-    # Remove UNKNOWN zero-amount garbage rows
     all_transactions = remove_unknown_transactions(all_transactions)
 
     return {"transactions": all_transactions}
@@ -460,26 +476,49 @@ def clean_raw_data(raw_data: dict) -> dict:
 
 def extract_bank_statement(pdf_path: str, password: str = None) -> dict:
     """
-    PUBLIC FUNCTION — this is what Tejas calls from routes/api.py.
+    PUBLIC API — call this from routes/api.py.
 
-    Full pipeline:
-      1. Open PDF (with optional password)
-      2. Extract all raw rows from all pages
-      3. Clean: filter, merge, parse, deduplicate
-      4. Return final JSON with transactions list only
+    Pipeline:
+        1. Open PDF  (with optional password)
+        2. Extract all raw rows from all pages
+        3. Clean: filter → merge → parse → deduplicate
+        4. Compute summary statistics for the ML model
+        5. Return final JSON
 
     Args:
-        pdf_path : path to the PDF file
-        password : password entered by user (None if unprotected)
+        pdf_path : absolute or relative path to the PDF file
+        password : PDF password (None if the file is unprotected)
 
     Returns:
-        { "transactions": [ { ... }, ... ] }
+        {
+            "transactions": [ { ... }, ... ],
+            "summary": {
+                "total_transactions": N,
+                "total_debit":        <float>,
+                "total_credit":       <float>,
+                "net_flow":           <float>,   # credit − debit
+                "source_file":        "<name>"
+            }
+        }
     """
-    # Step 2: Extract raw data
-    raw_data = extract_all_raw_data(pdf_path, password)
+    # Step 2 — extract raw rows
+    raw_data   = extract_all_raw_data(pdf_path, password)
 
-    # Step 3 + 4: Clean and return final JSON
+    # Steps 3+4 — clean and structure
     final_data = clean_raw_data(raw_data)
+
+    # Step 5 — build summary block (used by ML model + dashboard)
+    txns         = final_data["transactions"]
+    total_debit  = round(sum(t["withdrawal_amt"] for t in txns), 2)
+    total_credit = round(sum(t["deposit_amt"]    for t in txns), 2)
+
+    final_data["summary"] = {
+        "total_transactions": len(txns),
+        "total_debit":        total_debit,
+        "total_credit":       total_credit,
+        "net_flow":           round(total_credit - total_debit, 2),
+        "source_file":        Path(pdf_path).name,
+    }
 
     return final_data
 
@@ -489,21 +528,21 @@ def extract_bank_statement(pdf_path: str, password: str = None) -> dict:
 # ═══════════════════════════════════════════════════════════════════════════
 
 def save_to_json(data: dict, output_path: str):
-    """Saves final cleaned data to a JSON file."""
+    """Persist the final cleaned data to a JSON file."""
     with open(output_path, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
-    print(f"JSON saved -> {output_path}")
+    print(f"JSON saved → {output_path}")
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# ENTRY POINT — run directly from terminal for testing
+# ENTRY POINT — run directly from the terminal for quick testing
 # ═══════════════════════════════════════════════════════════════════════════
 
 if __name__ == "__main__":
     import sys
 
     if len(sys.argv) < 2:
-        print("Usage: python pdf_parser.py <path_to_pdf> [password]")
+        print("Usage: python parser.py <path_to_pdf> [password]")
         sys.exit(1)
 
     pdf_file = sys.argv[1]
@@ -511,9 +550,15 @@ if __name__ == "__main__":
 
     print(f"Opening  : {pdf_file}")
     print(f"Password : {'Provided' if pdf_pass else 'None (unprotected)'}")
-    print("Extracting and cleaning...")
+    print("Extracting and cleaning …")
 
     result = extract_bank_statement(pdf_file, pdf_pass)
-
     save_to_json(result, "output.json")
-    print(f"Total transactions extracted : {len(result['transactions'])}")
+
+    s = result["summary"]
+    print(f"\n── Summary ─────────────────────────────────────")
+    print(f"  Total transactions : {s['total_transactions']}")
+    print(f"  Total debit        : ₹{s['total_debit']:,.2f}")
+    print(f"  Total credit       : ₹{s['total_credit']:,.2f}")
+    print(f"  Net flow           : ₹{s['net_flow']:,.2f}")
+    print(f"  Source file        : {s['source_file']}")
