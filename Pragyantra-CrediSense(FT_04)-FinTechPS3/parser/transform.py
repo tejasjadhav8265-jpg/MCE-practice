@@ -26,23 +26,18 @@ def transform_transactions_for_ml(transactions):
     transformed = []
 
     for t in transactions:
-        amount = 0.0
-
-        if t.get("transaction_type") == "CREDIT":
-            amount = float(t.get("deposit_amt", 0.0))
-        elif t.get("transaction_type") == "DEBIT":
-            amount = -float(t.get("withdrawal_amt", 0.0))
-        else:
-            # fallback
-            deposit = float(t.get("deposit_amt", 0.0))
-            withdrawal = float(t.get("withdrawal_amt", 0.0))
-            amount = deposit if deposit > 0 else -withdrawal
+        # The new parser returns signed amount: positive for credit, negative for debit
+        amount = float(t.get("amount", 0.0))
+        balance = float(t.get("balance", 0.0))
+        category = t.get("category", "other")
+        description = t.get("description", "")
 
         transformed.append({
             "date": t.get("date"),
             "amount": amount,
-            "balance": float(t.get("closing_balance", 0.0)),
-            "category": categorize_transaction(t.get("narration", "")),
+            "balance": balance,
+            "category": category,
+            "narration": description,  # for categorization
         })
 
     return transformed

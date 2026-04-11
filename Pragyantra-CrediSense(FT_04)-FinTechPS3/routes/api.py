@@ -4,7 +4,7 @@ import shutil
 import os
 import tempfile
 
-from parser.pdf_parser import extract_bank_statement
+from parser.pdf_parser import extract_transactions
 from parser.transform import transform_transactions_for_ml
 from ml.features import compute_features
 from scoring.engine import get_credit_score
@@ -68,8 +68,8 @@ async def analyze(
         with open(tmp.name, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
 
-        parsed = extract_bank_statement(tmp.name, password or None)
-        transactions = parsed.get("transactions", [])
+        parsed = extract_transactions(tmp.name, password or None)
+        transactions = parsed
 
         if not transactions:
             raise HTTPException(status_code=400, detail="No transactions found in PDF. Please ensure it's a valid bank statement PDF.")
@@ -99,3 +99,18 @@ async def analyze(
             os.remove(tmp.name)
         except OSError:
             pass
+
+
+@router.post("/test-pdf")
+async def test_pdf():
+    """Test endpoint for debugging PDF parsing."""
+    try:
+        pdf_path = "text_bank_statement.pdf"  # Use the test PDF
+        transactions = extract_transactions(pdf_path)
+        
+        return {
+            "transactions_found": len(transactions),
+            "transactions": transactions[:3]  # First 3 for brevity
+        }
+    except Exception as e:
+        return {"error": str(e)}
