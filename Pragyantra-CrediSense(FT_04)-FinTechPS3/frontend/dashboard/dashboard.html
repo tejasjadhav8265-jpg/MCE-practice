@@ -414,198 +414,26 @@ body {
 
   <div id="toast" class="toast hidden"></div>
 
-  <script src="./script.js">
-    
-const BACKEND_ORIGIN = "http://127.0.0.1:8000/api";
-const SCORE_ENDPOINT = `${BACKEND_ORIGIN}/test-score`;   // ✅ FIXED
-const HEALTH_ENDPOINT = `${BACKEND_ORIGIN}/health`;      // ✅ NEW
+  <input id="pdfInput" type="file" accept="application/pdf" class="hidden" />
 
-const sampleTransactions = [
-  { date: "2024-01-01", amount: 50000, category: "salary", balance: 50000 },
-  { date: "2024-01-05", amount: -12000, category: "rent", balance: 38000 },
-  { date: "2024-01-10", amount: -3000, category: "groceries", balance: 35000 },
-  { date: "2024-01-15", amount: -1500, category: "food", balance: 33500 },
-  { date: "2024-01-20", amount: -2000, category: "transport", balance: 31500 },
-  { date: "2024-01-25", amount: -1000, category: "entertainment", balance: 30500 },
-  { date: "2024-02-01", amount: 50000, category: "salary", balance: 80500 },
-  { date: "2024-02-05", amount: -12000, category: "rent", balance: 68500 },
-  { date: "2024-02-10", amount: -3500, category: "groceries", balance: 65000 },
-  { date: "2024-02-15", amount: -2000, category: "food", balance: 63000 },
-  { date: "2024-02-20", amount: -2000, category: "transport", balance: 61000 },
-  { date: "2024-02-25", amount: -5000, category: "entertainment", balance: 56000 }
-];
+<div class="mt-6 grid md:grid-cols-2 gap-4">
+  <div>
+    <label for="pdfPassword" class="block text-sm text-slate-300 mb-2">PDF Password (optional)</label>
+    <input
+      id="pdfPassword"
+      type="password"
+      placeholder="Enter PDF password"
+      class="w-full bg-slate-900/70 border border-slate-700 rounded-xl px-4 py-3 text-slate-100 outline-none focus:ring-2 focus:ring-violet-500/60"
+    />
+  </div>
+</div>
 
-const dom = {
-  landing: document.getElementById("landingSection"),
-  loading: document.getElementById("loadingSection"),
-  dashboard: document.getElementById("dashboardSection"),
-  sampleBtn: document.getElementById("sampleBtn"),
-  uploadBtn: document.getElementById("uploadBtn"),
-  downloadBtn: document.getElementById("downloadBtn"),
-  occupationInput: document.getElementById("occupationInput"),
-  backendBadge: document.getElementById("backendBadge"),
-  backendDot: document.getElementById("backendDot"),
-  backendText: document.getElementById("backendText"),
-  creditScoreValue: document.getElementById("creditScoreValue"),
-  scoreRing: document.getElementById("scoreRing"),
-  riskBadge: document.getElementById("riskBadge"),
-  scoreMessage: document.getElementById("scoreMessage"),
-  featuresGrid: document.getElementById("featuresGrid"),
-  insightsList: document.getElementById("insightsList"),
-  toast: document.getElementById("toast")
-};
+<div class="glass-card p-6 mt-6">
+  <h3 class="text-white font-semibold text-lg">Advisor Insight</h3>
+  <p id="adviceBox" class="text-slate-300 text-sm mt-3 whitespace-pre-line"></p>
+</div>
 
-let factorChart = null;
+<script src="./dashboard.js"></script>
 
-function showToast(message) {
-  dom.toast.textContent = message;
-  dom.toast.classList.remove("hidden");
-  setTimeout(() => dom.toast.classList.add("hidden"), 2400);
-}
-
-function setBackendStatus(connected) {
-  dom.backendBadge.classList.toggle("status-online", connected);
-  dom.backendBadge.classList.toggle("status-offline", !connected);
-  dom.backendDot.classList.toggle("dot-online", connected);
-  dom.backendDot.classList.toggle("dot-offline", !connected);
-  dom.backendText.textContent = connected ? "Backend Connected" : "Backend Unreachable";
-}
-
-// ✅ FIXED backend check
-async function checkBackendConnection() {
-  try {
-    const res = await fetch(HEALTH_ENDPOINT);
-    setBackendStatus(res.ok);
-  } catch {
-    setBackendStatus(false);
-  }
-}
-
-function setLoadingState(isLoading) {
-  dom.loading.classList.toggle("hidden", !isLoading);
-  dom.sampleBtn.disabled = isLoading;
-}
-
-function riskColorByLevel(level) {
-  if (level === "Low") return "#22c55e";
-  if (level === "High") return "#ef4444";
-  return "#f59e0b";
-}
-
-function getRingProgress(score) {
-  const min = 300;
-  const max = 850;
-  return Math.round(((score - min) / (max - min)) * 360);
-}
-
-function renderFeatures(features) {
-  dom.featuresGrid.innerHTML = "";
-  Object.entries(features).forEach(([key, value]) => {
-    const card = document.createElement("div");
-    card.className = "feature-card";
-    card.innerHTML = `
-      <p class="feature-key">${key.replaceAll("_", " ")}</p>
-      <p class="feature-value">${typeof value === "number" ? value.toFixed(2) : value}</p>
-    `;
-    dom.featuresGrid.appendChild(card);
-  });
-}
-
-// ✅ FIXED feature name bug
-function renderInsights(data) {
-  const features = data.features;
-  const score = data.score.credit_score;
-
-  const items = [];
-
-  if (score > 700) items.push("Strong financial profile");
-  else if (score > 550) items.push("Moderate financial stability");
-  else items.push("High financial risk");
-
-  if ((features.savings_ratio ?? 0) > 0)
-    items.push("Positive savings behavior");
-  else
-    items.push("Low or negative savings");
-
-  dom.insightsList.innerHTML = items
-    .map(i => `<li>${i}</li>`)
-    .join("");
-}
-
-function renderDashboard(data) {
-  const { features, score } = data;
-
-  dom.creditScoreValue.textContent = score.credit_score;
-  dom.scoreMessage.textContent = score.message;
-
-  const deg = getRingProgress(score.credit_score);
-  const color = riskColorByLevel(score.risk_level);
-
-  dom.scoreRing.style.background = `conic-gradient(${color} ${deg}deg, #1e293b ${deg}deg)`;
-
-  renderFeatures(features);
-  renderInsights(data);
-
-  renderFactorChart(score.factor_breakdown);
-
-  dom.dashboard.classList.remove("hidden");
-}
-
-// ✅ SAFETY FIX
-function renderFactorChart(data) {
-  const canvas = document.getElementById("factorChart");
-  if (!canvas) return;
-
-  if (factorChart) factorChart.destroy();
-
-  factorChart = new Chart(canvas, {
-    type: "bar",
-    data: {
-      labels: Object.keys(data),
-      datasets: [{ data: Object.values(data) }]
-    }
-  });
-}
-
-async function fetchScore(payload) {
-  const res = await fetch(SCORE_ENDPOINT, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload)
-  });
-
-  if (!res.ok) throw new Error("API failed");
-
-  return res.json();
-}
-
-async function onTrySampleData() {
-  setLoadingState(true);
-  try {
-    const data = await fetchScore({
-      transactions: sampleTransactions,
-      occupation: dom.occupationInput.value || "Other"
-    });
-
-    renderDashboard(data);
-    showToast("Success");
-    setBackendStatus(true);
-  } catch (e) {
-    showToast("Backend error");
-    setBackendStatus(false);
-    console.error(e);
-  } finally {
-    setLoadingState(false);
-  }
-}
-
-function init() {
-  checkBackendConnection();
-  setInterval(checkBackendConnection, 5000);
-  dom.sampleBtn.addEventListener("click", onTrySampleData);
-}
-
-init();
-  </script>
 </body>
 </html>

@@ -5,37 +5,44 @@ import os
 model = None
 feature_names = []
 
+BASE_DIR = os.path.dirname(__file__)
+MODEL_PATH = os.path.join(BASE_DIR, "classifier.pkl")
+FEATURES_PATH = os.path.join(BASE_DIR, "feature_names.json")
+
 
 def load_model():
     global model, feature_names
 
-    if model is not None:
-        return
-
-    BASE_DIR = os.path.dirname(__file__)
+    if model is not None and feature_names:
+        return model, feature_names
 
     try:
-        with open(os.path.join(BASE_DIR, "classifier.pkl"), "rb") as f:
+        with open(MODEL_PATH, "rb") as f:
             model = pickle.load(f)
 
-        with open(os.path.join(BASE_DIR, "feature_names.json"), "r") as f:
+        with open(FEATURES_PATH, "r") as f:
             feature_names = json.load(f)
 
         print("✅ Model loaded")
-
     except Exception as e:
         print("❌ Model load failed:", e)
+        model = None
+        feature_names = []
+
+    return model, feature_names
+
+
+def get_model():
+    return load_model()
 
 
 def predict_credit_score(features: dict) -> int:
-    if model is None:
-        load_model()
+    mdl, names = get_model()
 
-    if model is None:
-        raise Exception("Model not loaded")
+    if mdl is None:
+        raise RuntimeError("Model not loaded")
 
-    input_vector = [features.get(name, 0) for name in feature_names]
+    input_vector = [float(features.get(name, 0.0)) for name in names]
+    prediction = mdl.predict([input_vector])[0]
 
-    prediction = model.predict([input_vector])[0]
-
-    return int(prediction)
+    return int(round(float(prediction)))

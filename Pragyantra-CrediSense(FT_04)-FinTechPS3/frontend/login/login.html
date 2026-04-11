@@ -2,194 +2,50 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Login | Credit AI</title>
-    <link rel="stylesheet" href="styles.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login</title>
+
+    <!-- Tailwind (for utility polish) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Your custom CSS -->
+    <link rel="stylesheet" href="login.css">
 </head>
-<style>
-    * {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-    font-family: 'Segoe UI', sans-serif;
-}
 
-body {
-    height: 100vh;
-    background: linear-gradient(135deg, #4f46e5, #9333ea);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-}
-
-.container {
-    width: 350px;
-}
-
-.card {
-    background: white;
-    padding: 30px;
-    border-radius: 15px;
-    box-shadow: 0 10px 25px rgba(0,0,0,0.2);
-    text-align: center;
-}
-
-.hidden {
-    display: none;
-}
-
-h2 {
-    margin-bottom: 5px;
-}
-
-.subtitle {
-    color: gray;
-    margin-bottom: 20px;
-    font-size: 14px;
-}
-
-form {
-    display: flex;
-    flex-direction: column;
-}
-
-input {
-    padding: 12px;
-    margin-bottom: 12px;
-    border-radius: 8px;
-    border: 1px solid #ddd;
-    font-size: 14px;
-}
-
-input:focus {
-    outline: none;
-    border-color: #4f46e5;
-}
-
-.btn {
-    padding: 12px;
-    border: none;
-    border-radius: 8px;
-    cursor: pointer;
-    font-weight: bold;
-    margin-top: 5px;
-}
-
-.primary {
-    background: #4f46e5;
-    color: white;
-}
-
-.primary:hover {
-    background: #4338ca;
-}
-
-.google {
-    background: #fff;
-    border: 1px solid #ddd;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-    margin-top: 10px;
-}
-
-.google img {
-    width: 18px;
-}
-
-.divider {
-    margin: 15px 0;
-    font-size: 12px;
-    color: gray;
-}
-
-.switch {
-    margin-top: 15px;
-    font-size: 13px;
-}
-
-.switch a {
-    color: #4f46e5;
-    text-decoration: none;
-    font-weight: bold;
-}
-</style>
 <body>
 
-<div class="container">
+    <div class="login-container">
+        <h2 class="text-2xl font-semibold mb-4">Welcome</h2>
 
-    <div class="card">
+        <input 
+            id="username" 
+            type="text" 
+            placeholder="Enter your name"
+        >
 
-        <h2>Welcome Back</h2>
-        <p class="subtitle">Login to your account</p>
+        <button onclick="login()">Continue</button>
 
-        <!-- LOGIN FORM -->
-        <form id="loginForm">
-            <input type="text" placeholder="Username" required>
-            <input type="password" placeholder="Password" required>
-
-            <button type="submit" class="btn primary">Login</button>
-        </form>
-
-        <div class="divider">OR</div>
-
-        <!-- GOOGLE SIGN IN -->
-        <button class="btn google">
-            <img src="https://cdn-icons-png.flaticon.com/512/300/300221.png">
-            Sign in with Google
-        </button>
-
-        <p class="switch">
-            Don't have an account?
-            <a href="#" id="showSignup">Sign Up</a>
+        <p class="text-sm text-gray-400 mt-4">
+            AI Credit Scoring System
         </p>
-
     </div>
 
-    <!-- SIGNUP CARD -->
-    <div class="card hidden" id="signupCard">
+    <script>
+        function login() {
+            const user = document.getElementById("username").value.trim();
 
-        <h2>Create Account</h2>
-        <p class="subtitle">Start your journey</p>
+            if (!user) {
+                alert("Enter username");
+                return;
+            }
 
-        <form id="signupForm">
-            <input type="text" placeholder="Username" required>
-            <input type="email" placeholder="Email" required>
-            <input type="password" placeholder="Password" required>
+            // store user locally (optional)
+            localStorage.setItem("user", user);
 
-            <button type="submit" class="btn primary">Sign Up</button>
-        </form>
-
-        <div class="divider">OR</div>
-
-        <button class="btn google">
-            <img src="https://cdn-icons-png.flaticon.com/512/300/300221.png">
-            Sign up with Google
-        </button>
-
-        <p class="switch">
-            Already have an account?
-            <a href="#" id="showLogin">Login</a>
-        </p>
-
-    </div>
-
-</div>
-
-<script src="script.js">
-    const loginCard = document.querySelector(".card");
-const signupCard = document.getElementById("signupCard");
-
-document.getElementById("showSignup").onclick = () => {
-    loginCard.classList.add("hidden");
-    signupCard.classList.remove("hidden");
-};
-
-document.getElementById("showLogin").onclick = () => {
-    signupCard.classList.add("hidden");
-    loginCard.classList.remove("hidden");
-};
-</script>
+            // redirect to dashboard
+            window.location.href = "../dashboard/dashboard.html";
+        }
+    </script>
 
 </body>
 </html>

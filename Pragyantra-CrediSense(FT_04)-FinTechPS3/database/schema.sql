@@ -1,10 +1,3 @@
--- =============================================================================
--- schema.sql
--- Database schema for users, transactions, credit scores, and Ollama results
--- Engine  : MySQL 8.0+
--- Charset : utf8mb4 (full Unicode + emoji support)
--- =============================================================================
-
 SET FOREIGN_KEY_CHECKS = 0;
 
 DROP TABLE IF EXISTS transactions;
