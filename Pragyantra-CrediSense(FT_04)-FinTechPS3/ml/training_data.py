@@ -43,3 +43,8 @@ def save_training_data():
 
     print(f"✅ Training data saved → {file_path}")
     return file_path
+
+
+# 🚀 THIS is what you were missing
+if __name__ == "__main__":
+    save_training_data()

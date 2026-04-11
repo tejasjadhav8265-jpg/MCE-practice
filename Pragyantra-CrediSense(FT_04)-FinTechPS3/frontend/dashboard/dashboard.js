@@ -3,65 +3,80 @@ const API = "http://127.0.0.1:8000/api/test-score";
 const sampleTransactions = [
   { date: "2024-01-01", amount: 50000, category: "salary", balance: 50000 },
   { date: "2024-01-05", amount: -12000, category: "rent", balance: 38000 },
-  { date: "2024-01-10", amount: -3000, category: "groceries", balance: 35000 }
+  { date: "2024-01-10", amount: -3000, category: "groceries", balance: 35000 },
+  { date: "2024-01-15", amount: -1500, category: "food", balance: 33500 },
+  { date: "2024-01-20", amount: -2000, category: "transport", balance: 31500 },
+  { date: "2024-01-25", amount: -1000, category: "entertainment", balance: 30500 },
+  { date: "2024-02-01", amount: 50000, category: "salary", balance: 80500 },
+  { date: "2024-02-05", amount: -12000, category: "rent", balance: 68500 },
+  { date: "2024-02-10", amount: -3500, category: "groceries", balance: 65000 },
+  { date: "2024-02-15", amount: -2000, category: "food", balance: 63000 },
+  { date: "2024-02-20", amount: -2000, category: "transport", balance: 61000 },
+  { date: "2024-02-25", amount: -5000, category: "entertainment", balance: 56000 }
 ];
 
 const dom = {
   sampleBtn: document.getElementById("sampleBtn"),
   uploadBtn: document.getElementById("uploadBtn"),
   pdfInput: document.getElementById("pdfInput"),
-  loading: document.getElementById("loading"),
-  dashboard: document.getElementById("dashboard"),
-  score: document.getElementById("score"),
-  message: document.getElementById("message"),
-  features: document.getElementById("features"),
-  insights: document.getElementById("insights"),
-  chart: document.getElementById("chart")
+  loading: document.getElementById("loadingSection"),
+  dashboard: document.getElementById("dashboardSection"),
+  score: document.getElementById("creditScoreValue"),
+  message: document.getElementById("scoreMessage"),
+  features: document.getElementById("featuresGrid"),
+  insights: document.getElementById("insightsList"),
+  chart: document.getElementById("factorChart"),
+  adviceBox: document.getElementById("adviceBox"),
+  occupationInput: document.getElementById("occupationInput"),
+  pdfPassword: document.getElementById("pdfPassword")
 };
 
 let chart = null;
 
 function showLoading(state) {
   dom.loading.classList.toggle("hidden", !state);
+  if (state) {
+    dom.loading.querySelector("p").textContent = "Processing your bank statement...";
+  }
 }
 
 function renderFeatures(features) {
   dom.features.innerHTML = "";
 
   Object.entries(features).forEach(([k, v]) => {
-    const div = document.createElement("div");
-
-    div.className =
-      "bg-slate-800 p-3 rounded-lg text-sm flex justify-between";
-
-    div.innerHTML = `
-      <span class="text-gray-400">${k.replaceAll("_", " ")}</span>
-      <span class="font-semibold">${v}</span>
+    const card = document.createElement("div");
+    card.className = "feature-card";
+    card.innerHTML = `
+      <p class="feature-key">${k.replaceAll("_", " ")}</p>
+      <p class="feature-value">${typeof v === "number" ? v.toFixed(2) : v}</p>
     `;
-
-    dom.features.appendChild(div);
+    dom.features.appendChild(card);
   });
 }
 
 function renderInsights(data) {
-  const f = data.features;
+  const features = data.features;
   const score = data.score.credit_score;
 
-  const insights = [];
+  const items = [];
 
-  if (score > 700) insights.push("Excellent credit profile");
-  else insights.push("Needs improvement");
+  if (score > 700) items.push("Strong financial profile");
+  else if (score > 550) items.push("Moderate financial stability");
+  else items.push("High financial risk");
 
-  if (f.savings_ratio > 0.2) insights.push("Good savings habit");
-  else insights.push("Low savings");
+  if ((features.savings_ratio ?? 0) > 0)
+    items.push("Positive savings behavior");
+  else
+    items.push("Low or negative savings");
 
-  if (f.overdraft_frequency < 0.1) insights.push("Low overdraft risk");
-  else insights.push("Frequent overdrafts");
-
-  dom.insights.innerHTML = insights.map(i => `<li>${i}</li>`).join("");
+  dom.insights.innerHTML = items
+    .map(i => `<li>${i}</li>`)
+    .join("");
 }
 
 function renderChart(data) {
+  if (!dom.chart) return;
+
   if (chart) chart.destroy();
 
   chart = new Chart(dom.chart, {
@@ -77,10 +92,14 @@ function renderChart(data) {
 }
 
 function renderDashboard(data) {
-  const { features, score } = data;
+  const { features, score, advice } = data;
 
-  dom.score.innerText = score.credit_score;
-  dom.message.innerText = score.message;
+  dom.score.textContent = score.credit_score;
+  dom.message.textContent = score.message;
+
+  if (dom.adviceBox) {
+    dom.adviceBox.textContent = advice || "No advice available.";
+  }
 
   renderFeatures(features);
   renderInsights(data);
@@ -125,20 +144,28 @@ dom.pdfInput.onchange = async (e) => {
 
   const formData = new FormData();
   formData.append("file", file);
+  formData.append("occupation", dom.occupationInput.value || "Other");
+  formData.append("password", dom.pdfPassword.value || "");
 
   showLoading(true);
 
   try {
-    const res = await fetch("http://127.0.0.1:8000/api/upload", {
+    const res = await fetch("http://127.0.0.1:8000/api/analyze", {
       method: "POST",
       body: formData
     });
 
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({ detail: res.statusText }));
+      throw new Error(errorData.detail || `HTTP ${res.status}: ${res.statusText}`);
+    }
+
     const data = await res.json();
     renderDashboard(data);
 
-  } catch {
-    alert("Upload failed");
+  } catch (error) {
+    alert("PDF Upload Failed: " + error.message);
+    console.error("Upload error:", error);
   }
 
   showLoading(false);

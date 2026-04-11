@@ -72,7 +72,7 @@ async def analyze(
         transactions = parsed.get("transactions", [])
 
         if not transactions:
-            raise HTTPException(status_code=400, detail="No transactions extracted from PDF")
+            raise HTTPException(status_code=400, detail="No transactions found in PDF. Please ensure it's a valid bank statement PDF.")
 
         ml_ready = transform_transactions_for_ml(transactions)
         features = compute_features(ml_ready)
@@ -91,7 +91,9 @@ async def analyze(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error analyzing PDF: {str(e)}")
+        error_msg = f"Error processing PDF: {str(e)}"
+        print(f"[ERROR] {error_msg}")
+        raise HTTPException(status_code=500, detail=error_msg)
     finally:
         try:
             os.remove(tmp.name)

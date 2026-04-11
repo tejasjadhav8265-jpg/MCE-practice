@@ -411,9 +411,28 @@ def extract_bank_statement(pdf_path: str, password: str = None) -> dict:
 
     print(f"[Parser] Detecting PDF type for: {Path(pdf_path).name}")
 
-    is_image = _is_image_based_pdf(pdf_path, password)
+    try:
+        is_image = _is_image_based_pdf(pdf_path, password)
+    except Exception as e:
+        print(f"[Parser] Could not detect PDF type ({e}), assuming text-based")
+        is_image = False
 
     if is_image:
+        if not OCR_AVAILABLE:
+            raise RuntimeError(
+                "Image-based PDF detected, but OCR dependencies are missing. "
+                "Install pdf2image, pytesseract, and the Tesseract binary."
+            )
+
+        try:
+            import subprocess
+            subprocess.run(['tesseract', '--version'], capture_output=True, check=True)
+        except (subprocess.CalledProcessError, FileNotFoundError):
+            raise RuntimeError(
+                "Image-based PDF detected, but Tesseract OCR is not installed or not available in PATH. "
+                "Install Tesseract and restart the backend."
+            )
+
         print("[Parser] Image-based PDF detected → using OCR")
         transactions = _extract_via_ocr(pdf_path, password)
     else:

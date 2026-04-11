@@ -3,11 +3,13 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from routes.api import router
 
+
 app = FastAPI(
     title="AI Credit Scoring System",
     description="Alternative credit scoring for individuals without credit history using ML",
     version="1.0.0",
 )
+
 
 app.add_middleware(
     CORSMiddleware,
